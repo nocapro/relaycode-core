@@ -1,0 +1,54 @@
+{
+  "name": "relaycode-core",
+  "version": "0.1.0",
+  "description": "The shared engine behind RelayCode and Noca.pro – a zero-friction, AI-native patch engine that turns your clipboard into a surgical code-editing laser.",
+  "author": "Noca.pro",
+  "license": "MIT",
+  "homepage": "https://github.com/nocapro/relaycode-core",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nocapro/relaycode-core.git"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "patch",
+    "diff",
+    "codemod",
+    "automation",
+    "typescript"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "prepublishOnly": "bun run build"
+  },
+  "dependencies": {
+    "apply-multi-diff": "^0.1.0",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/js-yaml": "^4.0.9",
+    "tsup": "^8.2.3",
+    "typescript": "^5.8.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
