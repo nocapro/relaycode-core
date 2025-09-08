@@ -75,11 +75,13 @@ import { logger } from './logger';
 import { z } from 'zod';
 import {
   ControlYamlSchema,
+  ParsedLLMResponseSchema,
+  PatchStrategySchema,
+} from './types';
+import type {
   FileOperation,
   ParsedLLMResponse,
-  ParsedLLMResponseSchema,
   PatchStrategy,
-  PatchStrategySchema,
 } from './types';
 import {
   DELETE_FILE_MARKER,
@@ -288,7 +290,7 @@ export const parseLLMResponse = (rawText: string): ParsedLLMResponse | null => {
 
 ## File: src/patch.ts
 `````typescript
-import { FileOperation } from './types';
+import type { FileOperation } from './types';
 import { applyStandardDiff, applySearchReplace } from 'apply-multi-diff';
 
 const patchStrategies = {
@@ -586,9 +588,9 @@ export type ParsedLLMResponse = z.infer<typeof ParsedLLMResponseSchema>;
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     }
   },
   "files": [
