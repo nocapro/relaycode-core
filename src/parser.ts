@@ -150,6 +150,31 @@ const parseCodeBlock = (match: RegExpExecArray): { operation: FileOperation, ful
 
   const parsedHeader = parseCodeBlockHeader(headerLine);
   if (!parsedHeader) {
+    // If header parsing fails but we have a space-separated path, treat the whole thing as a file path
+    const parts = headerLine.split(/\s+/);
+    if (parts.length > 1) {
+      const lastPart = parts[parts.length - 1]!;
+      const parsedStrategy = PatchStrategySchema.safeParse(lastPart);
+      if (!parsedStrategy.success) {
+        // The last part is not a valid strategy, so treat the whole line as a file path
+        const filePath = headerLine;
+        const patchStrategy = inferPatchStrategy(content, null);
+        
+        if (content.trim() === DELETE_FILE_MARKER) {
+          return { operation: { type: 'delete', path: filePath }, fullMatch };
+        }
+        
+        let cleanContent = content;
+        if (patchStrategy === 'replace') {
+          cleanContent = content.replace(/^\r?\n/, '').replace(/\r?\n$/, '');
+        }
+        
+        return {
+          operation: { type: 'write', path: filePath, content: cleanContent, patchStrategy },
+          fullMatch
+        };
+      }
+    }
     return null;
   }
 
@@ -161,12 +186,16 @@ const parseCodeBlock = (match: RegExpExecArray): { operation: FileOperation, ful
 
   const patchStrategy = inferPatchStrategy(content, parsedHeader.patchStrategy);
 
-  // CRITICAL FIX: No more START/END marker logic.
-  // For 'replace' strategy, we only clean up a potential single leading newline,
-  // which can be an artifact of markdown formatting. All other content is preserved.
-  const cleanContent = (patchStrategy === 'replace')
-    ? content.replace(/^\r?\n/, '')
-    : content;
+  // CRITICAL FIX: Handle START/END markers and clean content for replace strategy
+  let cleanContent = content;
+  if (patchStrategy === 'replace') {
+    // Remove START/END markers if present
+    cleanContent = content.replace(/^\/\/ START\s*\r?\n/, '').replace(/\r?\n\/\/ END\s*$/, '');
+    // Remove leading newline if present
+    cleanContent = cleanContent.replace(/^\r?\n/, '');
+    // Remove trailing newline if present (but preserve other whitespace)
+    cleanContent = cleanContent.replace(/\r?\n$/, '');
+  }
 
   if (patchStrategy === 'replace') {
     logger.debug(`[parser] Final 'replace' content (JSON encoded):`, JSON.stringify(cleanContent));

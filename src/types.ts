@@ -91,7 +91,7 @@ export const StateFileSchema = z.object({
   linesAdded: z.number().optional(),
   linesRemoved: z.number().optional(),
   linesDifference: z.number().optional(),
-  gitCommitMsg: z.string().optional(),
+  gitCommitMsg: z.union([z.string(), z.array(z.string())]).optional(),
   promptSummary: z.string().optional(),
   reasoning: z.array(z.string()),
   operations: z.array(FileOperationSchema),
@@ -105,10 +105,19 @@ export const ControlYamlSchema = z.object({
   projectId: z.string(),
   uuid: z.string().uuid(),
   changeSummary: z.array(z.record(z.string(), z.string())).optional(), // Not strictly used, but good to parse
-  gitCommitMsg: z.string().optional(),
+  gitCommitMsg: z.union([z.string(), z.array(z.string())]).optional(),
   promptSummary: z.string().optional(),
 });
 export type ControlYaml = z.infer<typeof ControlYamlSchema>;
+
+// Helper function to normalize gitCommitMsg to a single line by default
+export const normalizeGitCommitMsg = (gitCommitMsg: string | string[] | undefined): string | undefined => {
+  if (!gitCommitMsg) return undefined;
+  if (Array.isArray(gitCommitMsg)) {
+    return gitCommitMsg.join(' ');
+  }
+  return gitCommitMsg;
+};
 
 // The fully parsed response from the clipboard
 export const ParsedLLMResponseSchema = z.object({
