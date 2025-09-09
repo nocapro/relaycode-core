@@ -114,7 +114,8 @@ export type ControlYaml = z.infer<typeof ControlYamlSchema>;
 export const normalizeGitCommitMsg = (gitCommitMsg: string | string[] | undefined): string | undefined => {
   if (!gitCommitMsg) return undefined;
   if (Array.isArray(gitCommitMsg)) {
-    return gitCommitMsg.join(' ');
+    // Join with newlines to preserve multiline structure
+    return gitCommitMsg.join('\n');
   }
   return gitCommitMsg;
 };
