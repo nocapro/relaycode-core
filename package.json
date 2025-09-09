@@ -1,6 +1,6 @@
 {
   "name": "relaycode-core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "The shared engine behind RelayCode and Noca.pro – a zero-friction, AI-native patch engine that turns your clipboard into a surgical code-editing laser.",
   "author": "Noca.pro",
   "license": "MIT",
