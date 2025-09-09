@@ -110,13 +110,28 @@ export const ControlYamlSchema = z.object({
 });
 export type ControlYaml = z.infer<typeof ControlYamlSchema>;
 
-// Helper function to normalize gitCommitMsg to a single line by default
+// Helper function to normalize gitCommitMsg to support both oneliner and multi-line formats
 export const normalizeGitCommitMsg = (gitCommitMsg: string | string[] | undefined): string | undefined => {
   if (!gitCommitMsg) return undefined;
   if (Array.isArray(gitCommitMsg)) {
     // Join with newlines to preserve multiline structure
     return gitCommitMsg.join('\n');
   }
+  return gitCommitMsg;
+};
+
+// Helper function to format gitCommitMsg for YAML output
+export const formatGitCommitMsgForYaml = (gitCommitMsg: string | string[] | undefined): string | string[] | undefined => {
+  if (!gitCommitMsg) return undefined;
+  if (Array.isArray(gitCommitMsg)) {
+    // If it's already an array, keep it as is for YAML formatting
+    return gitCommitMsg;
+  }
+  // If it's a string with newlines, convert to array for proper YAML formatting
+  if (gitCommitMsg.includes('\n')) {
+    return gitCommitMsg.split('\n').filter(line => line.trim());
+  }
+  // Single line, return as string
   return gitCommitMsg;
 };
 
