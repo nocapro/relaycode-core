@@ -33,7 +33,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "bun run scripts/update-timestamp.ts && tsup",
     "dev": "tsup --watch",
     "prepublishOnly": "bun run build"
   },

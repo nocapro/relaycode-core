@@ -13,6 +13,9 @@ const CoreConfigSchema = z.object({
 const WatcherConfigSchema = z.object({
   clipboardPollInterval: z.number().int().positive().default(2000),
   preferredStrategy: z.enum(['auto', 'replace', 'standard-diff', 'search-replace']).default('auto'),
+  enableBulkProcessing: z.boolean().default(false),
+  bulkSize: z.number().int().positive().default(5),
+  bulkTimeout: z.number().int().positive().default(30000),
 });
 
 const PatchConfigSchema = z.object({
@@ -88,6 +91,7 @@ export const StateFileSchema = z.object({
   uuid: z.string().uuid(),
   projectId: z.string(),
   createdAt: z.string(), // ISO string
+  approved: z.boolean(),
   linesAdded: z.number().optional(),
   linesRemoved: z.number().optional(),
   linesDifference: z.number().optional(),
@@ -96,7 +100,6 @@ export const StateFileSchema = z.object({
   reasoning: z.array(z.string()),
   operations: z.array(FileOperationSchema),
   snapshot: FileSnapshotSchema,
-  approved: z.boolean(),
 });
 export type StateFile = z.infer<typeof StateFileSchema>;
 
