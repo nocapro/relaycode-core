@@ -12,10 +12,14 @@ const isValidLogLevel = (level: string): level is LogLevelName => {
     return level in levels;
 }
 
-const envLogLevel = process.env.LOG_LEVEL?.toLowerCase() || 'info';
-const LOG_LEVEL: LogLevelName = isValidLogLevel(envLogLevel) ? envLogLevel : 'info';
+const getLogLevel = (): LogLevelName => {
+    const envLogLevel = process.env.LOG_LEVEL?.toLowerCase() || 'info';
+    return isValidLogLevel(envLogLevel) ? envLogLevel : 'info';
+}
 
-const currentLevel = levels[LOG_LEVEL];
+let currentLogLevelName: LogLevelName = getLogLevel();
+let currentLevel = levels[currentLogLevelName];
+
 
 const log = (level: number, prefix: string, ...args: any[]) => {
   if (level >= currentLevel) {
@@ -28,6 +32,12 @@ const log = (level: number, prefix: string, ...args: any[]) => {
 };
 
 export const logger = {
+  setLevel: (level: LogLevelName) => {
+      if (isValidLogLevel(level)) {
+        currentLogLevelName = level;
+        currentLevel = levels[level];
+      }
+  },
   debug: (...args: any[]) => log(levels.debug, '[DEBUG]', ...args),
   info: (...args: any[]) => log(levels.info, '[INFO]', ...args),
   warn: (...args: any[]) => log(levels.warn, '[WARN]', ...args),

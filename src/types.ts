@@ -143,5 +143,6 @@ export const ParsedLLMResponseSchema = z.object({
   control: ControlYamlSchema,
   operations: z.array(FileOperationSchema),
   reasoning: z.array(z.string()),
+  ignoredBlocks: z.array(z.object({ reason: z.string() })).optional(),
 });
 export type ParsedLLMResponse = z.infer<typeof ParsedLLMResponseSchema>;

@@ -116,7 +116,12 @@ const extractAndParseYaml = (rawText: string) => {
   return { control: null, textWithoutYaml: rawText };
 };
 
-const parseCodeBlock = (match: RegExpExecArray): { operation: FileOperation, fullMatch: string } | null => {
+type ParsedCodeBlockResult =
+  | { operation: FileOperation; fullMatch: string }
+  | { ignoredReason: string; fullMatch: string };
+
+
+const parseCodeBlock = (match: RegExpExecArray): ParsedCodeBlockResult | null => {
   const [fullMatch, rawHeader, rawContent] = match;
   let headerLine = (rawHeader || '').trim();
 
@@ -144,38 +149,15 @@ const parseCodeBlock = (match: RegExpExecArray): { operation: FileOperation, ful
       const { from, to } = z.object({ from: z.string().min(1), to: z.string().min(1) }).parse(JSON.parse(content));
       return { operation: { type: 'rename', from, to }, fullMatch };
     } catch (e) {
-      return null;
+      return { ignoredReason: `Invalid JSON for rename operation: ${e instanceof Error ? e.message : String(e)}`, fullMatch };
     }
   }
 
   const parsedHeader = parseCodeBlockHeader(headerLine);
   if (!parsedHeader) {
-    // If header parsing fails but we have a space-separated path, treat the whole thing as a file path
-    const parts = headerLine.split(/\s+/);
-    if (parts.length > 1) {
-      const lastPart = parts[parts.length - 1]!;
-      const parsedStrategy = PatchStrategySchema.safeParse(lastPart);
-      if (!parsedStrategy.success) {
-        // The last part is not a valid strategy, so treat the whole line as a file path
-        const filePath = headerLine;
-        const patchStrategy = inferPatchStrategy(content, null);
-        
-        if (content.trim() === DELETE_FILE_MARKER) {
-          return { operation: { type: 'delete', path: filePath }, fullMatch };
-        }
-        
-        let cleanContent = content;
-        if (patchStrategy === 'replace') {
-          cleanContent = content.replace(/^\r?\n/, '').replace(/\r?\n$/, '');
-        }
-        
-        return {
-          operation: { type: 'write', path: filePath, content: cleanContent, patchStrategy },
-          fullMatch
-        };
-      }
-    }
-    return null;
+    // If `parseCodeBlockHeader` returns null, it means the header is definitively malformed
+    // (e.g., it contains an invalid strategy, or is a misplaced diff header like `--- file.ts`).
+    return { ignoredReason: `Malformed code block header: "${headerLine}"`, fullMatch };
   }
 
   const { filePath } = parsedHeader;
@@ -215,19 +197,24 @@ export const parseLLMResponse = (rawText: string): ParsedLLMResponse | null => {
   }
 
   const operations: FileOperation[] = [];
+  const ignoredBlocks: { reason: string }[] = [];
   const matchedBlocks: string[] = [];
   let match;
 
   while ((match = CODE_BLOCK_REGEX.exec(textWithoutYaml)) !== null) {
     const result = parseCodeBlock(match);
     if (result) {
-      operations.push(result.operation);
+      if ('operation' in result) {
+        operations.push(result.operation);
+      } else if ('ignoredReason' in result) {
+        ignoredBlocks.push({ reason: result.ignoredReason });
+      }
       matchedBlocks.push(result.fullMatch);
     }
   }
 
-  if (operations.length === 0) {
-    return null;
+  if (operations.length === 0 && ignoredBlocks.length === 0) {
+    return null; // No operations and nothing ignored, it's not for us.
   }
 
   let reasoningText = textWithoutYaml;
@@ -237,7 +224,7 @@ export const parseLLMResponse = (rawText: string): ParsedLLMResponse | null => {
   const reasoning = reasoningText.split('\n').map(line => line.trim()).filter(Boolean);
 
   try {
-    const parsedResponse = ParsedLLMResponseSchema.parse({ control, operations, reasoning });
+    const parsedResponse = ParsedLLMResponseSchema.parse({ control, operations, reasoning, ignoredBlocks });
     return parsedResponse;
   } catch (e) {
     return null;

@@ -1,5 +1,7 @@
 import type { FileOperation } from './types';
 import { applyStandardDiff, applySearchReplace, type ApplyDiffResult } from 'apply-multi-diff';
+import path from 'path';
+import { logger } from './logger';
 
 const patchStrategies = {
   'standard-diff': async (p: { originalContent: string; diffContent: string; }) => {
@@ -72,6 +74,43 @@ const applyFileOperations = async (
     return { success: true, content: currentContent };
 };
 
+const findBestFileMatch = (targetPath: string, availablePaths: string[]): string | null => {
+    const targetFileName = path.basename(targetPath);
+    if (!targetFileName) return null;
+
+    const candidates = availablePaths.filter(p => path.basename(p) === targetFileName);
+
+    if (candidates.length === 0) return null;
+    if (candidates.length === 1) return candidates[0] ?? null;
+
+    const normalize = (p: string) => p.replace(/\\/g, '/');
+    const targetSegments = normalize(targetPath).split('/').reverse();
+
+    let bestCandidate: string | null = null;
+    let highestScore = -1;
+
+    for (const candidate of candidates) {
+        const candidateSegments = normalize(candidate).split('/').reverse();
+        let score = 0;
+        const len = Math.min(targetSegments.length, candidateSegments.length);
+        for (let i = 0; i < len; i++) {
+            if (targetSegments[i] === candidateSegments[i]) {
+                score++;
+            } else {
+                break;
+            }
+        }
+
+        if (score > highestScore) {
+            highestScore = score;
+            bestCandidate = candidate;
+        } else if (score === highestScore) {
+            bestCandidate = null; // Ambiguous match
+        }
+    }
+    return bestCandidate;
+};
+
 export const applyOperations = async (
     operations: FileOperation[],
     originalFiles: Map<string, string | null>
@@ -99,9 +138,29 @@ export const applyOperations = async (
     }
 
     // Step 2: Remap paths in other operations based on the renames.
-    const remappedOps = otherOps.map(op => {
+    let remappedOps = otherOps.map(op => {
         const newPath = pathMapping.get(op.path);
         return newPath ? { ...op, path: newPath } : op;
+    });
+
+    // Step 2.5: Fuzzy find missing paths for patch/delete operations.
+    const availablePaths = Array.from(fileStates.keys()).filter((p): p is string => p !== null);
+    remappedOps = remappedOps.map(op => {
+        const fileExists = fileStates.has(op.path);
+        
+        // A 'replace' operation on a new file is a file creation, not a mistake to be corrected.
+        const isPatchOrDelete = (op.type === 'write' && op.patchStrategy !== 'replace') || op.type === 'delete';
+        
+        if (!fileExists && isPatchOrDelete) {
+            const bestMatch = findBestFileMatch(op.path, availablePaths);
+            if (bestMatch) {
+                logger.debug(`[patch] Fuzzy-matched '${op.path}' to '${bestMatch}'`);
+                return { ...op, path: bestMatch };
+            } else {
+                 logger.debug(`[patch] Could not find a match for non-existent file: '${op.path}'`);
+            }
+        }
+        return op;
     });
 
     // Step 3: Group operations by file path.
